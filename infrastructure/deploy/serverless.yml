@@ -1,0 +1,80 @@
+service: advent2019-service
+
+provider:
+  name: aws
+  role: LambdaRole
+
+package:
+  individually: true
+
+functions:
+  noVpcLambda:
+    handler: "io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"
+    package:
+      artifact: "../../target/advent2019-0.1.0-SNAPSHOT-runner.jar"
+    runtime: java8
+    timeout: 10
+    environment:
+      STAGE: ${opt:stage}
+  vpcLambda:
+    handler: "io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"
+    package:
+      artifact: "../../target/advent2019-0.1.0-SNAPSHOT-runner.jar"
+    runtime: java8
+    timeout: 10
+    vpc:
+      securityGroupIds:
+        - Fn::ImportValue: advent2019-sg-${opt:stage}
+      subnetIds:
+        - Fn::ImportValue: advent2019-subnet1-${opt:stage}
+        - Fn::ImportValue: advent2019-subnet2-${opt:stage}
+    environment:
+      STAGE: ${opt:stage}
+  redisLambda:
+    handler: "io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"
+    package:
+      artifact: "../../target/advent2019-0.1.0-SNAPSHOT-runner.jar"
+    runtime: java8
+    timeout: 10
+    vpc:
+      securityGroupIds:
+        - Fn::ImportValue: advent2019-sg-${opt:stage}
+      subnetIds:
+        - Fn::ImportValue: advent2019-subnet1-${opt:stage}
+        - Fn::ImportValue: advent2019-subnet2-${opt:stage}
+    environment:
+      STAGE: ${opt:stage}
+      ENDPOINT:
+        Fn::ImportValue: advent2019-redis-endpoint-${opt:stage}
+      PORT:
+        Fn::ImportValue: advent2019-redis-port-${opt:stage}
+      ENABLED_REDIS: true
+
+resources:
+  Resources:
+    LambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+        Path: /
+        RoleName: advent2019-lambda-role
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+          - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+        Policies:
+          - PolicyName: Advent2019AWSLambda
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - "dynamodb:*"
+                  Resource:
+                    - "*"

@@ -1,0 +1,11 @@
+version: '2.4'
+services:
+  builder:
+    build: .
+    image: graalvm:latest
+    volumes:
+      - '.:/work'
+    command: ./build-native.sh
+    environment:
+      GRAALVM_HOME: /opt/graalvm-ce
+      JAVA_HOME: /usr/lib/jvm/java-1.8.0-amazon-corretto.x86_64

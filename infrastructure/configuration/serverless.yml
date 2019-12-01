@@ -1,0 +1,177 @@
+service: advent2019-configuration
+
+provider:
+  name: aws
+
+resources:
+  Resources:
+    VPC:
+      Type: AWS::EC2::VPC
+      Properties:
+        CidrBlock: 192.168.0.0/24
+        EnableDnsHostnames: true
+        EnableDnsSupport: true
+        Tags:
+          - Key: Name
+            Value: advent2019-vpc-${opt:stage}
+    PublicSubnet:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone:
+          Fn::Select:
+            - 0
+            - Fn::GetAZs: ""
+        CidrBlock: 192.168.0.128/26
+        MapPublicIpOnLaunch: true
+        VpcId: !Ref VPC
+    InternetGateway:
+      Type: AWS::EC2::InternetGateway
+    VPCGatewayAttachment:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        InternetGatewayId: !Ref InternetGateway
+        VpcId: !Ref VPC
+    RouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref VPC
+    Route:
+      Type: AWS::EC2::Route
+      Properties:
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref InternetGateway
+        RouteTableId: !Ref RouteTable
+    PublicSubnetRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref RouteTable
+        SubnetId: !Ref PublicSubnet
+
+    Subnet1:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone:
+          Fn::Select:
+            - 0
+            - Fn::GetAZs: ""
+        CidrBlock: 192.168.0.0/26
+        MapPublicIpOnLaunch: false
+        VpcId: !Ref VPC
+    Subnet2:
+      Type: AWS::EC2::Subnet
+      Properties:
+        AvailabilityZone:
+          Fn::Select:
+            - 1
+            - Fn::GetAZs: ""
+        CidrBlock: 192.168.0.64/26
+        MapPublicIpOnLaunch: false
+        VpcId: !Ref VPC
+    EIP:
+      Type: AWS::EC2::EIP
+      Properties:
+        Domain: vpc
+    NatGateway:
+      Type: AWS::EC2::NatGateway
+      Properties:
+        AllocationId:
+          Fn::GetAtt:
+            - EIP
+            - AllocationId
+        SubnetId: !Ref PublicSubnet
+    PrivateRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref VPC
+    PrivateRoute:
+      Type: AWS::EC2::Route
+      Properties:
+        DestinationCidrBlock: 0.0.0.0/0
+        NatGatewayId: !Ref NatGateway
+        RouteTableId: !Ref PrivateRouteTable
+    Subnet1RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref PrivateRouteTable
+        SubnetId: !Ref Subnet1
+    Subnet2RouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref PrivateRouteTable
+        SubnetId: !Ref Subnet2
+
+    SecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "Security Group"
+        VpcId: !Ref VPC
+    RedisSecurityGroupIngress:
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        GroupId: !Ref SecurityGroup
+        IpProtocol: "tcp"
+        FromPort: "6379"
+        ToPort: "6379"
+        SourceSecurityGroupId: !Ref SecurityGroup
+    SubnetGroups:
+      Type: AWS::ElastiCache::SubnetGroup
+      Properties:
+        Description: ElastiCache Subnet Groups
+        SubnetIds:
+          - !Ref Subnet1
+          - !Ref Subnet2
+    ElastiCache:
+      Type: AWS::ElastiCache::CacheCluster
+      Properties:
+        CacheNodeType: cache.t2.micro
+        CacheSubnetGroupName: !Ref SubnetGroups
+        Engine: redis
+        EngineVersion: '5.0.5'
+        NumCacheNodes: 1
+        VpcSecurityGroupIds:
+          - Fn::GetAtt:
+              - SecurityGroup
+              - GroupId
+    Advent2019Table:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        BillingMode: PAY_PER_REQUEST
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        TableName: advent2019-${opt:stage}
+
+  Outputs:
+    VPC:
+      Value: !Ref VPC
+      Export:
+        Name: advent2019-vpc-${opt:stage}
+    Subnet1:
+      Value: !Ref Subnet1
+      Export:
+        Name: advent2019-subnet1-${opt:stage}
+    Subnet2:
+      Value: !Ref Subnet2
+      Export:
+        Name: advent2019-subnet2-${opt:stage}
+    SecurityGroup:
+      Value: !Ref SecurityGroup
+      Export:
+        Name: advent2019-sg-${opt:stage}
+    ElastiCacheEndpoint:
+      Value:
+        Fn::GetAtt:
+          - ElastiCache
+          - RedisEndpoint.Address
+      Export:
+        Name: advent2019-redis-endpoint-${opt:stage}
+    ElastiCachePort:
+      Value:
+        Fn::GetAtt:
+          - ElastiCache
+          - RedisEndpoint.Port
+      Export:
+        Name: advent2019-redis-port-${opt:stage}
