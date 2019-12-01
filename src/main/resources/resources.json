@@ -1,0 +1,6 @@
+{
+  "resources": [
+    { "pattern": "com/amazonaws/partitions/endpoints.json" },
+    { "pattern": "application.properties" }
+  ]
+}

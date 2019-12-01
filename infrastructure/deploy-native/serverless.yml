@@ -7,15 +7,23 @@ provider:
 package:
   individually: true
 
+layers:
+  sslLibs:
+    path: ../../target/ssl-libs
+
 functions:
   noVpcLambda:
     handler: "io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"
+    layers:
+      - {Ref: SslLibsLambdaLayer}
     package:
       artifact: "../../target/function.zip"
     runtime: provided
     timeout: 10
     environment:
       DISABLE_SIGNAL_HANDLERS: true
+      TRUST_STORE: /opt/cacerts
+      SSL_LIBS: /opt/lib
       STAGE: ${opt:stage}
       ENDPOINT:
         Fn::ImportValue: advent2019-redis-endpoint-${opt:stage}
@@ -23,6 +31,8 @@ functions:
         Fn::ImportValue: advent2019-redis-port-${opt:stage}
   vpcLambda:
     handler: "io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"
+    layers:
+      - {Ref: SslLibsLambdaLayer}
     package:
       artifact: "../../target/function.zip"
     runtime: provided
@@ -35,6 +45,8 @@ functions:
         - Fn::ImportValue: advent2019-subnet2-${opt:stage}
     environment:
       DISABLE_SIGNAL_HANDLERS: true
+      TRUST_STORE: /opt/cacerts
+      SSL_LIBS: /opt/lib
       STAGE: ${opt:stage}
       ENDPOINT:
         Fn::ImportValue: advent2019-redis-endpoint-${opt:stage}

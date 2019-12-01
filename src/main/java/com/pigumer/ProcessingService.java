@@ -1,6 +1,5 @@
 package com.pigumer;
 
-import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
@@ -13,10 +12,26 @@ import java.util.HashMap;
 
 @ApplicationScoped
 public class ProcessingService {
-    private String stage = System.getenv("STAGE");
-    private String endpoint = System.getenv("ENDPOINT");
-    private String port = System.getenv("PORT");
-    private String redis = System.getenv("ENABLED_REDIS");
+    private String stage ;
+    private String endpoint ;
+    private String port ;
+    private String redis ;
+
+    public ProcessingService() {
+        this.stage = System.getenv("STAGE");
+        this.endpoint = System.getenv("ENDPOINT");
+        this.port = System.getenv("PORT");
+        this.redis = System.getenv("ENABLED_REDIS");
+
+        String trustStore = System.getenv("TRUST_STORE");
+        if (trustStore != null && !trustStore.equals("")) {
+           System.setProperty("javax.net.ssl.trustStore", trustStore);
+        }
+        String sslLibs = System.getenv("SSL_LIBS");
+        if (sslLibs != null && !sslLibs.equals("")) {
+            System.setProperty("java.library.path", sslLibs);
+        }
+    }
 
     /*
     private OutputObject redis(InputObject input) {
